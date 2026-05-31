@@ -1,9 +1,5 @@
-export { DashboardView } from './dashboard-view';
-export { TasksView } from './tasks-view';
-export { CreateTaskView } from './create-task-view';
-export { TaskDetailView } from './task-detail-view';
-export { KnowledgeView } from './knowledge-view';
-export { KnowledgeDetailView } from './knowledge-detail';
-export { CodeGenView } from './code-gen-view';
-export { ResultsView } from './results-view';
-export { ChatView } from './chat-view';
+import './chat-view';
+import './task-detail-view';
+import './knowledge-view';
+import './skills-view';
+import './settings-view';

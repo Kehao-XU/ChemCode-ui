@@ -4,40 +4,68 @@ import { getState, subscribe, setView } from '../state';
 import type { Task } from '../types';
 import { CALC_TYPE_LABELS, STATUS_LABELS } from '../types';
 
+type DetailTab = 'parameters' | 'info' | 'files' | 'visualization';
+
 @customElement('task-detail-view')
 export class TaskDetailView extends LitElement {
   static styles = css`
-    :host { display: block; padding: var(--spacing-lg); max-width: 960px; margin: 0 auto; }
+    :host {
+      display: flex;
+      height: 100%;
+    }
 
-    .page-header {
+    /* Left tab sidebar */
+    .tab-sidebar {
+      width: 160px;
+      flex-shrink: 0;
+      background: var(--color-background-primary);
+      border-right: 0.5px solid var(--color-border-tertiary);
+      padding: var(--spacing-sm) 0;
+    }
+    .tab-item {
       display: flex;
       align-items: center;
-      gap: var(--spacing-sm);
-      margin-bottom: var(--spacing-lg);
+      gap: 8px;
+      padding: 10px var(--spacing-md);
+      font-size: var(--font-size-sm);
+      color: var(--color-text-secondary);
+      cursor: pointer;
+      transition: all var(--transition-fast);
+      border-left: 3px solid transparent;
+    }
+    .tab-item:hover { background: var(--color-background-secondary); color: var(--color-text-primary); }
+    .tab-item.active {
+      background: var(--color-accent-light);
+      color: var(--color-accent);
+      border-left-color: var(--color-accent);
+      font-weight: var(--font-weight-medium);
     }
     .back-btn {
-      background: none;
-      border: none;
-      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 10px var(--spacing-md);
+      font-size: var(--font-size-sm);
       color: var(--color-text-secondary);
-      font-size: 18px;
-      padding: 4px;
-      border-radius: var(--border-radius-sm);
+      cursor: pointer;
+      border-bottom: 0.5px solid var(--color-border-tertiary);
+      margin-bottom: var(--spacing-xs);
     }
-    .back-btn:hover { background: var(--color-background-tertiary); }
+    .back-btn:hover { color: var(--color-accent); }
 
-    .detail-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: var(--spacing-md);
+    /* Right content */
+    .content-area {
+      flex: 1;
+      padding: var(--spacing-lg);
+      overflow-y: auto;
     }
-    @media (max-width: 768px) { .detail-grid { grid-template-columns: 1fr; } }
 
     .card {
       background: var(--color-background-primary);
       border: 0.5px solid var(--color-border-tertiary);
       border-radius: var(--border-radius-lg);
       padding: var(--spacing-md);
+      margin-bottom: var(--spacing-md);
     }
     .card-title {
       font-size: var(--font-size-lg);
@@ -51,135 +79,135 @@ export class TaskDetailView extends LitElement {
       display: flex;
       justify-content: space-between;
       padding: 6px 0;
-      border-bottom: 0.5px solid var(--color-border-tertiary);
       font-size: var(--font-size-base);
+      border-bottom: 0.5px solid var(--color-border-tertiary);
     }
     .info-row:last-child { border-bottom: none; }
     .info-label { color: var(--color-text-secondary); }
     .info-value { font-weight: var(--font-weight-medium); }
 
-    .progress-container {
-      margin: var(--spacing-md) 0;
-    }
-    .progress-header {
+    .job-item {
       display: flex;
-      justify-content: space-between;
-      margin-bottom: var(--spacing-xs);
-      font-size: var(--font-size-sm);
+      align-items: center;
+      gap: 10px;
+      padding: 8px 0;
+      border-bottom: 0.5px solid var(--color-border-tertiary);
     }
-    .progress-bar {
-      width: 100%;
-      height: 8px;
-      background: var(--color-border-tertiary);
-      border-radius: 4px;
-      overflow: hidden;
+    .job-item:last-child { border-bottom: none; }
+    .job-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
     }
-    .progress-fill {
-      height: 100%;
-      border-radius: 4px;
-      transition: width 0.5s ease;
+    .job-dot.completed { background: var(--color-status-completed); }
+    .job-dot.waiting { background: var(--color-status-queued); }
+    .job-dot.error { background: var(--color-status-failed); }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .job-spinner {
+      width: 10px; height: 10px;
+      border: 2px solid var(--color-border-tertiary);
+      border-top-color: var(--color-accent);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      flex-shrink: 0;
     }
+    .job-name { flex: 1; font-size: var(--font-size-sm); }
+    .job-detail { font-size: var(--font-size-xs); color: var(--color-text-tertiary); }
 
-    .output-files {
-      margin-top: var(--spacing-sm);
-    }
     .file-item {
       display: flex;
       align-items: center;
       gap: var(--spacing-xs);
       padding: 6px 0;
+      cursor: pointer;
       font-size: var(--font-size-sm);
       color: var(--color-accent);
-      cursor: pointer;
     }
     .file-item:hover { text-decoration: underline; }
 
-    .action-bar {
-      display: flex;
-      gap: var(--spacing-xs);
-      margin-top: var(--spacing-md);
-      grid-column: 1 / -1;
-    }
-
-    .status-section {
+    .placeholder {
+      height: 200px;
+      background: var(--color-background-secondary);
+      border-radius: var(--border-radius-md);
       display: flex;
       align-items: center;
-      gap: var(--spacing-sm);
+      justify-content: center;
+      color: var(--color-text-tertiary);
+      font-size: var(--font-size-sm);
+    }
+
+    .not-found {
+      padding: var(--spacing-xl);
+      text-align: center;
+      color: var(--color-text-tertiary);
     }
   `;
 
   @property({ type: Object }) task: Task | null = null;
+  @property({ type: String }) activeTab: DetailTab = 'info';
 
   connectedCallback() {
     super.connectedCallback();
     subscribe(() => {
-      const state = getState();
-      this.task = state.tasks.find(t => t.id === state.selectedTaskId) || null;
+      const s = getState();
+      this.task = s.tasks.find(t => t.id === s.selectedTaskId) || null;
     });
-  }
-
-  private statusColor(status: string): string {
-    switch (status) {
-      case 'running': return 'var(--color-status-running)';
-      case 'queued': return 'var(--color-status-queued)';
-      case 'failed': return 'var(--color-status-failed)';
-      case 'completed': return 'var(--color-status-completed)';
-      default: return 'var(--color-text-tertiary)';
-    }
   }
 
   render() {
     if (!this.task) {
-      return html`<div style="padding:var(--spacing-xl);text-align:center;color:var(--color-text-tertiary)">
-        <p>任务未找到</p>
-        <button class="btn btn-secondary mt-md" @click=${() => setView('tasks')}>返回任务列表</button>
-      </div>`;
+      return html`<div class="not-found"><p>任务未找到</p></div>`;
     }
 
     const t = this.task;
 
+    const tabs: { id: DetailTab; label: string; icon: string }[] = [
+      { id: 'info', label: '任务基本信息', icon: '📋' },
+      { id: 'parameters', label: '计算参数', icon: '⚙️' },
+      { id: 'files', label: '输出文件列表', icon: '📄' },
+      { id: 'visualization', label: '可视化', icon: '📊' },
+    ];
+
     return html`
-      <div>
-        <div class="page-header">
-          <button class="back-btn" @click=${() => setView('tasks')}>←</button>
-          <div>
-            <div style="font-size:var(--font-size-2xl);font-weight:var(--font-weight-bold)">${t.name}</div>
-            <div style="font-size:var(--font-size-sm);color:var(--color-text-secondary)">${t.id} · ${t.createdAt}</div>
-          </div>
+      <div class="tab-sidebar">
+        <div class="back-btn" @click=${() => setView('chat')}>
+          ← 退出
         </div>
-
-        <div class="detail-grid">
-          <!-- Status & Progress -->
-          <div class="card">
-            <div class="card-title">运行状态</div>
-            <div class="status-section">
-              <span class="status-badge ${t.status}" style="font-size:var(--font-size-base);padding:4px 14px;">
-                <span class="status-dot ${t.status}" style="width:10px;height:10px"></span>
-                ${STATUS_LABELS[t.status]}
-              </span>
-            </div>
-            <div class="progress-container">
-              <div class="progress-header">
-                <span>进度</span>
-                <span>${t.progress}%</span>
-              </div>
-              <div class="progress-bar">
-                <div class="progress-fill" style="width:${t.progress}%;background:${this.statusColor(t.status)}"></div>
-              </div>
-            </div>
-            <div class="info-row"><span class="info-label">预计剩余</span><span class="info-value">${t.eta}</span></div>
+        ${tabs.map(tab => html`
+          <div class="tab-item ${this.activeTab === tab.id ? 'active' : ''}"
+            @click=${() => this.activeTab = tab.id}>
+            ${tab.icon} ${tab.label}
           </div>
+        `)}
+      </div>
 
-          <!-- Basic Info -->
+      <div class="content-area">
+        ${this.activeTab === 'info' ? html`
           <div class="card">
-            <div class="card-title">基本信息</div>
+            <div class="card-title">${t.name}</div>
+            <div class="info-row"><span class="info-label">任务ID</span><span class="info-value">${t.id}</span></div>
             <div class="info-row"><span class="info-label">计算类型</span><span class="info-value">${CALC_TYPE_LABELS[t.calcType]}</span></div>
+            <div class="info-row"><span class="info-label">状态</span><span class="info-value" style="color:${t.status === 'running' ? 'var(--color-status-running)' : t.status === 'error' ? 'var(--color-status-failed)' : t.status === 'waiting' ? 'var(--color-status-queued)' : 'var(--color-status-completed)'}">${STATUS_LABELS[t.status]}</span></div>
             <div class="info-row"><span class="info-label">描述</span><span class="info-value">${t.description}</span></div>
             <div class="info-row"><span class="info-label">创建时间</span><span class="info-value">${t.createdAt}</span></div>
             ${t.completedAt ? html`<div class="info-row"><span class="info-label">完成时间</span><span class="info-value">${t.completedAt}</span></div>` : ''}
           </div>
 
-          <!-- Parameters -->
+          ${t.jobs ? html`
+            <div class="card">
+              <div class="card-title">作业步骤</div>
+              ${t.jobs.map(j => html`
+                <div class="job-item">
+                  ${j.status === 'running' ? html`<div class="job-spinner"></div>` : html`<div class="job-dot ${j.status}"></div>`}
+                  <span class="job-name">${j.name}</span>
+                  ${j.detail ? html`<span class="job-detail">${j.detail}</span>` : ''}
+                </div>
+              `)}
+            </div>
+          ` : ''}
+        ` : ''}
+
+        ${this.activeTab === 'parameters' ? html`
           <div class="card">
             <div class="card-title">计算参数</div>
             <div class="info-row"><span class="info-label">力场</span><span class="info-value">${t.forceField || '-'}</span></div>
@@ -188,26 +216,24 @@ export class TaskDetailView extends LitElement {
             <div class="info-row"><span class="info-label">时间步长</span><span class="info-value">${t.timeStep ? t.timeStep + ' fs' : '-'}</span></div>
             <div class="info-row"><span class="info-label">总步数</span><span class="info-value">${t.totalSteps ? t.totalSteps.toLocaleString() : '-'}</span></div>
           </div>
+        ` : ''}
 
-          <!-- Output Files -->
+        ${this.activeTab === 'files' ? html`
           <div class="card">
             <div class="card-title">输出文件</div>
             ${t.outputFiles && t.outputFiles.length > 0
-              ? html`<div class="output-files">
-                  ${t.outputFiles.map(f => html`<div class="file-item">📄 ${f}</div>`)}
-                </div>`
+              ? t.outputFiles.map(f => html`<div class="file-item">📄 ${f}</div>`)
               : html`<div class="text-muted" style="font-size:var(--font-size-sm)">暂无输出文件</div>`
             }
           </div>
+        ` : ''}
 
-          <div class="action-bar">
-            <button class="btn btn-primary">查看结果</button>
-            <button class="btn btn-secondary">编辑参数</button>
-            ${t.status === 'running' ? html`<button class="btn btn-danger">停止任务</button>` : ''}
-            <button class="btn btn-secondary">导出报告</button>
-            <button class="btn btn-secondary" @click=${() => setView('tasks')}>返回列表</button>
+        ${this.activeTab === 'visualization' ? html`
+          <div class="card">
+            <div class="card-title">可视化</div>
+            <div class="placeholder">🔬 可视化区域（待实现）</div>
           </div>
-        </div>
+        ` : ''}
       </div>
     `;
   }

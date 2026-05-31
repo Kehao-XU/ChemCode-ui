@@ -1,153 +1,178 @@
-import type { DashboardStats, Task, KnowledgeEntry, ChatMessage, PageView } from './types';
+import type {
+  ChatMessage, Task, KnowledgeEntry, SkillEntry,
+  ConfiguredModel, PageView, SettingsTab, ThemeMode, Lang
+} from './types';
 
 export interface AppState {
   currentView: PageView;
   selectedTaskId: string | null;
-  selectedKnowledgeId: string | null;
   sidebarCollapsed: boolean;
-  searchQuery: string;
+  settingsTab: SettingsTab;
 
-  dashboard: DashboardStats;
   tasks: Task[];
   knowledge: KnowledgeEntry[];
+  skills: SkillEntry[];
   chatMessages: ChatMessage[];
+  configuredModels: ConfiguredModel[];
+
+  // Settings
+  theme: ThemeMode;
+  language: Lang;
+  fontSize: number;
 }
 
 type Listener = () => void;
-
 const listeners = new Set<Listener>();
 
 let state: AppState = {
-  currentView: 'dashboard',
+  currentView: 'chat',
   selectedTaskId: null,
-  selectedKnowledgeId: null,
   sidebarCollapsed: false,
-  searchQuery: '',
-
-  dashboard: {
-    activeTasks: 3,
-    completedToday: 12,
-    knowledgeEntries: 48,
-    systemStatus: 'online',
-  },
+  settingsTab: 'account',
 
   tasks: [
     {
       id: 'T-001',
-      name: '蛋白酶A分子动力学模拟',
+      name: '蛋白酶A分子动力学',
       calcType: 'molecular_dynamics',
       status: 'running',
-      description: '对蛋白酶A进行50ns分子动力学模拟',
+      description: '50ns MD模拟',
       progress: 65,
-      eta: '约2小时',
-      createdAt: '2026-05-31 09:15',
+      createdAt: '09:15',
       forceField: 'AMBER',
       temperature: 310,
       pressure: 1,
-      timeStep: 2,
-      totalSteps: 25000000,
+      jobs: [
+        { name: '能量最小化', status: 'completed' },
+        { name: 'NVT平衡', status: 'completed' },
+        { name: 'NPT平衡', status: 'completed' },
+        { name: '生产模拟', status: 'running', detail: '65% · 预计2h' },
+      ],
     },
     {
       id: 'T-002',
-      name: '高分子聚合物DPD模拟',
+      name: '聚合物DPD模拟',
       calcType: 'dpd',
-      status: 'queued',
-      description: '嵌段共聚物自组装行为模拟',
-      progress: 0,
-      eta: '等待中',
-      createdAt: '2026-05-31 10:30',
-      forceField: 'COMPASS',
-      temperature: 298,
+      status: 'waiting',
+      description: '嵌段共聚物自组装',
+      createdAt: '10:30',
+      jobs: [
+        { name: '预处理', status: 'waiting' },
+      ],
     },
     {
       id: 'T-003',
       name: '过渡态能垒计算',
       calcType: 'quantum_chemistry',
       status: 'completed',
-      description: 'SN2反应过渡态结构优化与能垒计算',
-      progress: 100,
-      eta: '已完成',
-      createdAt: '2026-05-30 14:00',
-      completedAt: '2026-05-30 18:23',
+      description: 'SN2过渡态优化',
+      createdAt: '14:00',
+      completedAt: '18:23',
+      outputFiles: ['transition_state.xyz', 'energy_profile.txt'],
     },
     {
       id: 'T-004',
-      name: 'MOF材料气体吸附DFT计算',
+      name: 'MOF吸附能计算',
       calcType: 'dft',
-      status: 'failed',
-      description: 'CO2在ZIF-8中的吸附能计算',
-      progress: 23,
-      eta: '计算错误',
-      createdAt: '2026-05-30 11:20',
+      status: 'error',
+      description: 'CO₂在ZIF-8吸附',
+      createdAt: '11:20',
+      jobs: [
+        { name: '结构优化', status: 'completed' },
+        { name: 'SCF计算', status: 'error', detail: '收敛失败 - SCF不收敛' },
+      ],
     },
     {
       id: 'T-005',
-      name: '配体结合自由能计算',
+      name: '配体结合自由能',
       calcType: 'monte_carlo',
       status: 'running',
-      description: '药物分子与靶点蛋白结合自由能评估',
+      description: '药物-靶点结合评估',
       progress: 42,
-      eta: '约4小时',
-      createdAt: '2026-05-31 08:00',
+      createdAt: '08:00',
+      jobs: [
+        { name: '准备配体', status: 'completed' },
+        { name: '准备受体', status: 'completed' },
+        { name: '采样计算', status: 'running', detail: '42% · 预计4h' },
+      ],
     },
   ],
 
   knowledge: [
     {
       id: 'K-001',
-      title: '分子动力学模拟力场选择指南',
-      category: '参数设置规则',
-      tags: ['力场', 'MD', '参数选择'],
-      content: '力场选择是分子动力学模拟的关键步骤。不同体系需要选择不同的力场：\n\n- **蛋白质/核酸**：推荐AMBER或CHARMM力场\n- **脂质膜**：推荐CHARMM36\n- **聚合物**：推荐OPLS或COMPASS\n- **小分子**：推荐GAFF或CGenFF\n\n力场的选择直接影响模拟结果的准确性，建议根据文献和验证结果确定。',
-      codeExample: '# GROMACS力场选择示例\n; 选择AMBER99SB-ILDN力场\n[ defaults ]\nnbfunc        = 1\ncomb-rule     = 2\ngen-pairs     = yes\nfudgeLJ       = 0.5\nfudgeQQ       = 0.5\n',
-      notes: '力场参数文件需与模拟体系匹配，避免混用不同力场',
-      createdAt: '2026-05-15',
+      title: 'GROMACS 入门指南',
+      category: '计算库',
+      tags: ['GROMACS', '入门'],
+      content: '## 安装\n```bash\nwget http://ftp.gromacs.org/gromacs/gromacs-2024.3.tar.gz\ntar xf gromacs-2024.3.tar.gz\ncd gromacs-2024.3\nmkdir build && cd build\ncmake .. -DGMX_BUILD_OWN_FFTW=ON\nmake -j4\nmake install\n```\n\n## 运行\n`gmx mdrun -deffnm md`',
+      updatedAt: '2026-05-20',
     },
     {
       id: 'K-002',
-      title: '计算库调用规范 - GROMACS',
-      category: '计算库使用指南',
-      tags: ['GROMACS', 'MD模拟', '命令行'],
-      content: 'GROMACS是最常用的分子动力学软件之一。基本调用流程：\n\n1. **预处理**：`gmx pdb2gmx -f input.pdb -o processed.gro`\n2. **定义盒子**：`gmx editconf -f processed.gro -o box.gro -c -d 1.0`\n3. **溶剂化**：`gmx solvate -cp box.gro -cs spc216.gro -o solvated.gro`\n4. **离子中和**：`gmx genion`\n5. **能量最小化**：`gmx mdrun -deffnm em`\n6. **平衡**：NVT和NPT平衡\n7. **生产模拟**：`gmx mdrun -deffnm md`',
-      codeExample: '# GROMACS完整运行脚本示例\n#!/bin/bash\n# 预处理\ngmx pdb2gmx -f protein.pdb -o protein.gro -ff amber99sb-ildn -water tip3p\n# 定义盒子\ngmx editconf -f protein.gro -o box.gro -c -d 1.0 -bt cubic\n# 溶剂化\ngmx solvate -cp box.gro -cs spc216.gro -o solvated.gro -p topol.top\n# 能量最小化\ngmx grompp -f em.mdp -c solvated.gro -p topol.top -o em.tpr\ngmx mdrun -deffnm em\n',
-      createdAt: '2026-05-10',
+      title: '力场选择指南',
+      category: '参数设置',
+      tags: ['力场', 'AMBER', 'CHARMM'],
+      content: '| 体系类型 | 推荐力场 |\n|---------|--------|\n| 蛋白质 | AMBER99SB-ILDN / CHARMM36 |\n| 脂质膜 | CHARMM36 |\n| 聚合物 | OPLS / COMPASS |\n| 小分子 | GAFF / CGenFF |',
+      updatedAt: '2026-05-15',
     },
     {
       id: 'K-003',
-      title: '常见计算参数设置规则',
-      category: '参数设置规则',
-      tags: ['参数', '温度', '压力', '时间步长'],
-      content: '分子动力学模拟的关键参数设置：\n\n### 温度设置\n- 蛋白质体系：310K（人体温度）\n- 室温体系：298K\n- 聚合物体系：根据Tg设定\n\n### 压力设置\n- 标准大气压：1 bar\n- 高压模拟：100-1000 bar\n\n### 时间步长\n- 刚性键约束：2 fs\n- 柔性键：0.5-1 fs\n- 粗粒化：5-10 fs\n\n### 总模拟时间\n- 蛋白质折叠：μs级\n- 配体结合：ns-μs级\n- 聚合物平衡：10-100 ns',
-      createdAt: '2026-05-12',
+      title: '常见错误解决',
+      category: 'FAQ',
+      tags: ['错误', '调试'],
+      content: '### LINCS 失败\n- 减小时间步长\n- 检查初始结构\n\n### SCF 不收敛\n- 增加 SCF 迭代次数\n- 使用更小的混合因子',
+      updatedAt: '2026-05-10',
     },
-    {
-      id: 'K-004',
-      title: '学术论文中模拟部分的写作规范',
-      category: '学术规范',
-      tags: ['论文写作', '学术规范', '数据报告'],
-      content: '计算化学论文中模拟部分应包含以下信息：\n\n1. **软件版本**：注明使用的模拟软件及版本号\n2. **力场参数**：详细说明力场选择及参数来源\n3. **模拟条件**：温度、压力、时间步长等\n4. **平衡过程**：能量最小化和平衡模拟步骤\n5. **统计分析**：误差分析和置信区间\n6. **数据可用性**：原始数据和参数文件存放位置',
-      codeExample: '## 计算方法\n分子动力学模拟使用 GROMACS 2024.3 软件包进行。\n体系采用 AMBER99SB-ILDN 力场描述，水分子模型使用 TIP3P。\n在 NPT 系综下进行 100 ns 生产模拟，温度控制在 310 K（使用 V-rescale 控温器），\n压力控制在 1 bar（使用 Parrinello-Rahman 控压器）。\n时间步长设置为 2 fs，每 10 ps 保存一次轨迹。',
-      createdAt: '2026-05-08',
-    },
-    {
-      id: 'K-005',
-      title: 'Python MDAnalysis轨迹分析示例',
-      category: '示例代码',
-      tags: ['Python', '轨迹分析', 'MDAnalysis', '代码'],
-      content: '使用MDAnalysis库进行分子动力学轨迹分析的基本模板：',
-      codeExample: 'import MDAnalysis as mda\nimport numpy as np\nimport matplotlib.pyplot as plt\n\n# 加载轨迹\nu = mda.Universe("topol.tpr", "traj.xtc")\n\n# 计算RMSD\nfrom MDAnalysis.analysis import rms\n\nrmsd_analysis = rms.RMSD(u, select="backbone")\nrmsd_analysis.run()\n\n# 绘制RMSD\nplt.plot(rmsd_analysis.results.rmsd[:, 1], rmsd_analysis.results.rmsd[:, 2])\nplt.xlabel("Time (ps)")\nplt.ylabel("RMSD (nm)")\nplt.title("Backbone RMSD")\nplt.show()\n\n# 计算氢键\nfrom MDAnalysis.analysis import hbonds\n\nhb = hbonds.HydrogenBondAnalysis(\n    universe=u,\n    donors_sel="protein",\n    hydrogens_sel="protein",\n    acceptors_sel="protein",\n)\nhb.run()\nprint(f"Average hydrogen bonds: {hb.results.counts.mean():.1f}")',
-      createdAt: '2026-05-20',
-    },
+  ],
+
+  skills: [
+    { id: 'S-001', name: 'GROMACS 自动脚本', description: '自动生成GROMACS运行脚本', version: '1.2.0', installed: true, author: 'ChemCode', downloads: 128 },
+    { id: 'S-002', name: '分子结构验证', description: '上传结构文件自动检查合理性', version: '0.9.0', installed: true, author: 'ChemCode', downloads: 92 },
+    { id: 'S-003', name: '轨迹分析工具集', description: 'RMSD、RDF、氢键等分析', version: '2.0.0', installed: false, author: 'Community', downloads: 356 },
+    { id: 'S-004', name: 'VASP 输入生成', description: '生成VASP计算输入文件', version: '1.0.0', installed: false, author: 'Community', downloads: 67 },
+  ],
+
+  configuredModels: [
+    { name: 'DeepSeek-V4', apiUrl: 'https://api.deepseek.com', apiKey: 'sk-***', supportsContext: true, provider: 'deepseek' },
+    { name: 'GPT-4o', apiUrl: 'https://api.openai.com', apiKey: 'sk-***', supportsContext: true, provider: 'openai' },
   ],
 
   chatMessages: [
     {
       id: 'sys-1',
       type: 'system',
-      content: '欢迎使用 ChemCode 计算化学AI Agent！您可以提问计算化学相关问题，或直接描述您需要的模拟任务。',
+      content: '欢迎使用 ChemCode！我可以帮你完成计算化学任务，随时开始对话。',
       timestamp: '09:00',
     },
+    {
+      id: 'msg-1',
+      type: 'user',
+      content: '帮我做蛋白质A的分子动力学模拟，用AMBER力场',
+      timestamp: '09:01',
+    },
+    {
+      id: 'msg-2',
+      type: 'agent',
+      content: '好的，我将为你准备蛋白质A的分子动力学模拟。\n\n**模拟方案：**\n- 力场：AMBER99SB-ILDN\n- 溶剂：TIP3P水模型\n- 温度：310K\n- 模拟时间：50ns\n\n我先进行能量最小化步骤。',
+      timestamp: '09:01',
+      files: [
+        { name: 'em.mdp', type: 'mdp', size: '1.2KB' },
+        { name: 'nvt.mdp', type: 'mdp', size: '1.5KB' },
+        { name: 'npt.mdp', type: 'mdp', size: '1.5KB' },
+        { name: 'md.mdp', type: 'mdp', size: '1.3KB' },
+      ],
+    },
+    {
+      id: 'msg-3',
+      type: 'system',
+      content: '检测到结构文件键长异常，建议检查PDB文件',
+      timestamp: '09:02',
+    },
   ],
+
+  theme: 'light',
+  language: 'zh',
+  fontSize: 14,
 };
 
 export function getState(): AppState {
@@ -160,19 +185,32 @@ export function updateState(partial: Partial<AppState>): void {
 }
 
 export function setView(view: PageView): void {
-  updateState({ currentView: view, selectedTaskId: null, selectedKnowledgeId: null });
+  updateState({ currentView: view, selectedTaskId: null });
 }
 
 export function selectTask(id: string): void {
   updateState({ currentView: 'task-detail', selectedTaskId: id });
 }
 
-export function selectKnowledge(id: string): void {
-  updateState({ currentView: 'knowledge-detail', selectedKnowledgeId: id });
-}
-
 export function toggleSidebar(): void {
   updateState({ sidebarCollapsed: !state.sidebarCollapsed });
+}
+
+export function setThemeMode(mode: ThemeMode): void {
+  updateState({ theme: mode });
+  document.documentElement.setAttribute('data-theme', mode);
+}
+
+export function setLanguage(lang: Lang): void {
+  updateState({ language: lang });
+}
+
+export function setFontSize(size: number): void {
+  updateState({ fontSize: size });
+}
+
+export function setSettingsTab(tab: SettingsTab): void {
+  updateState({ settingsTab: tab });
 }
 
 export function subscribe(fn: () => void): () => void {
@@ -190,4 +228,19 @@ export function getKnowledge(id: string): KnowledgeEntry | undefined {
 
 export function addChatMessage(msg: ChatMessage): void {
   updateState({ chatMessages: [...state.chatMessages, msg] });
+}
+
+export function toggleSkill(id: string): void {
+  const skills = state.skills.map(s =>
+    s.id === id ? { ...s, installed: !s.installed } : s
+  );
+  updateState({ skills });
+}
+
+export function addModel(model: ConfiguredModel): void {
+  updateState({ configuredModels: [...state.configuredModels, model] });
+}
+
+export function removeModel(name: string): void {
+  updateState({ configuredModels: state.configuredModels.filter(m => m.name !== name) });
 }

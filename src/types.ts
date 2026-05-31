@@ -8,7 +8,8 @@ export type CalcType =
   | 'monte_carlo'
   | 'machine_learning';
 
-export type TaskStatus = 'running' | 'queued' | 'failed' | 'completed';
+/** 任务状态：完成/询问/报错/进行中 */
+export type TaskStatus = 'completed' | 'waiting' | 'error' | 'running';
 
 export interface Task {
   id: string;
@@ -16,29 +17,24 @@ export interface Task {
   calcType: CalcType;
   status: TaskStatus;
   description: string;
-  progress: number;
-  eta: string;
+  progress?: number;
   createdAt: string;
   completedAt?: string;
-  moleculeFile?: string;
   forceField?: string;
   temperature?: number;
   pressure?: number;
   timeStep?: number;
   totalSteps?: number;
+  jobs?: JobStep[];
+  parameters?: Record<string, string>;
   outputFiles?: string[];
 }
 
-export interface KnowledgeEntry {
-  id: string;
-  title: string;
-  category: string;
-  tags: string[];
-  content: string;
-  codeExample?: string;
-  notes?: string;
-  relatedIds?: string[];
-  createdAt: string;
+/** 任务中的作业步骤 */
+export interface JobStep {
+  name: string;
+  status: TaskStatus;
+  detail?: string;
 }
 
 export interface ChatMessage {
@@ -46,49 +42,70 @@ export interface ChatMessage {
   type: 'user' | 'agent' | 'system';
   content: string;
   timestamp: string;
+  files?: GeneratedFile[];
   code?: string;
 }
 
-export interface DashboardStats {
-  activeTasks: number;
-  completedToday: number;
-  knowledgeEntries: number;
-  systemStatus: 'online' | 'degraded' | 'offline';
+/** 生成的文件块 */
+export interface GeneratedFile {
+  name: string;
+  type: string;
+  size?: string;
+  content?: string;
 }
 
+export interface KnowledgeEntry {
+  id: string;
+  title: string;
+  category: string;
+  content: string;
+  tags: string[];
+  updatedAt: string;
+}
+
+export interface SkillEntry {
+  id: string;
+  name: string;
+  description: string;
+  version: string;
+  installed: boolean;
+  author?: string;
+  downloads?: number;
+}
+
+export interface ConfiguredModel {
+  name: string;
+  apiUrl: string;
+  apiKey: string;
+  supportsContext: boolean;
+  provider: string;
+}
+
+/** 设置界面左侧Tab */
+export type SettingsTab = 'account' | 'system' | 'models' | 'help';
+
 export type PageView =
-  | 'dashboard'
-  | 'tasks'
-  | 'create-task'
+  | 'chat'
   | 'task-detail'
   | 'knowledge'
-  | 'knowledge-detail'
-  | 'code-gen'
-  | 'results'
-  | 'chat';
+  | 'skills'
+  | 'settings';
+
+export type ThemeMode = 'light' | 'dark';
+export type Lang = 'zh' | 'en';
 
 export const CALC_TYPE_LABELS: Record<CalcType, string> = {
   molecular_dynamics: '分子动力学',
-  dpd: 'DPD耗散粒子动力学',
+  dpd: 'DPD',
   quantum_chemistry: '量子化学',
-  dft: 'DFT密度泛函理论',
+  dft: 'DFT',
   monte_carlo: '蒙特卡洛',
   machine_learning: '机器学习',
 };
 
 export const STATUS_LABELS: Record<TaskStatus, string> = {
-  running: '运行中',
-  queued: '排队中',
-  failed: '失败',
   completed: '已完成',
+  waiting: '等待中',
+  error: '出错',
+  running: '进行中',
 };
-
-export const KNOWLEDGE_CATEGORIES = [
-  '学术规范',
-  '计算库使用指南',
-  '参数设置规则',
-  '常见问题解答',
-  '示例代码',
-];
-
-export const FORCE_FIELD_OPTIONS = ['AMBER', 'CHARMM', 'OPLS', 'GROMOS', 'COMPASS'];

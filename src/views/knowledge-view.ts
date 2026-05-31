@@ -1,53 +1,29 @@
 import { LitElement, html, css } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
-import { getState, subscribe, selectKnowledge, setView } from '../state';
+import { getState, subscribe, setView } from '../state';
 import type { KnowledgeEntry } from '../types';
-import { KNOWLEDGE_CATEGORIES } from '../types';
 
 @customElement('knowledge-view')
 export class KnowledgeView extends LitElement {
   static styles = css`
-    :host { display: block; padding: var(--spacing-lg); max-width: 1280px; margin: 0 auto; }
+    :host { display: block; padding: var(--spacing-lg); max-width: 860px; margin: 0 auto; }
+    .page-title { font-size: var(--font-size-2xl); font-weight: var(--font-weight-bold); margin-bottom: var(--spacing-lg); }
 
-    .page-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: var(--spacing-lg);
-      flex-wrap: wrap;
-      gap: var(--spacing-sm);
+    .search-bar {
+      margin-bottom: var(--spacing-md);
     }
-    .page-title { font-size: var(--font-size-2xl); font-weight: var(--font-weight-bold); }
-
-    .category-bar {
-      display: flex;
-      gap: var(--spacing-xs);
-      flex-wrap: wrap;
-      margin-bottom: var(--spacing-lg);
-    }
-    .cat-btn {
-      padding: 6px 14px;
+    .search-bar input {
+      width: 100%;
+      padding: 8px 12px;
       border: 0.5px solid var(--color-border-tertiary);
-      border-radius: 100px;
-      background: var(--color-background-primary);
-      color: var(--color-text-secondary);
-      cursor: pointer;
-      font-size: var(--font-size-sm);
-      transition: all var(--transition-fast);
+      border-radius: var(--border-radius-md);
+      font-size: var(--font-size-base);
+      outline: none;
+      box-sizing: border-box;
     }
-    .cat-btn:hover { border-color: var(--color-accent); color: var(--color-accent); }
-    .cat-btn.active {
-      background: var(--color-accent);
-      color: white;
-      border-color: var(--color-accent);
-    }
+    .search-bar input:focus { border-color: var(--color-accent); }
 
-    .knowledge-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-      gap: var(--spacing-md);
-    }
-
+    .entry-list { display: flex; flex-direction: column; gap: var(--spacing-sm); }
     .entry-card {
       background: var(--color-background-primary);
       border: 0.5px solid var(--color-border-tertiary);
@@ -56,44 +32,57 @@ export class KnowledgeView extends LitElement {
       cursor: pointer;
       transition: all var(--transition-fast);
     }
-    .entry-card:hover {
-      border-color: var(--color-border-info);
-      box-shadow: var(--shadow-sm);
-    }
-    .entry-title {
-      font-size: var(--font-size-base);
-      font-weight: var(--font-weight-medium);
-      margin-bottom: var(--spacing-xs);
-      color: var(--color-text-primary);
-    }
-    .entry-category { font-size: var(--font-size-xs); color: var(--color-accent); margin-bottom: var(--spacing-xs); }
-    .entry-preview {
+    .entry-card:hover { border-color: var(--color-border-info); }
+    .entry-title { font-size: var(--font-size-base); font-weight: var(--font-weight-medium); margin-bottom: 4px; }
+    .entry-meta { font-size: var(--font-size-xs); color: var(--color-text-tertiary); margin-bottom: var(--spacing-xs); }
+
+    .entry-content {
       font-size: var(--font-size-sm);
       color: var(--color-text-secondary);
-      display: -webkit-box;
-      -webkit-line-clamp: 3;
-      -webkit-box-orient: vertical;
-      overflow: hidden;
       line-height: 1.6;
     }
-    .entry-tags {
-      display: flex;
-      gap: 4px;
-      flex-wrap: wrap;
-      margin-top: var(--spacing-xs);
+    .entry-content code {
+      background: var(--color-background-secondary);
+      padding: 1px 4px;
+      border-radius: 3px;
+      font-size: var(--font-size-xs);
     }
-    .entry-date { font-size: var(--font-size-xs); color: var(--color-text-tertiary); margin-top: var(--spacing-xs); }
+    .entry-content pre {
+      background: #282a36;
+      color: #f8f8f2;
+      padding: var(--spacing-sm);
+      border-radius: var(--border-radius-md);
+      overflow-x: auto;
+      font-size: var(--font-size-xs);
+      margin: var(--spacing-xs) 0;
+    }
+    .entry-content table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: var(--font-size-sm);
+      margin: var(--spacing-xs) 0;
+    }
+    .entry-content td, .entry-content th {
+      padding: 4px 8px;
+      border: 0.5px solid var(--color-border-tertiary);
+    }
+    .entry-content th { background: var(--color-background-secondary); font-weight: var(--font-weight-medium); }
 
-    .empty {
-      text-align: center;
-      padding: var(--spacing-xl);
-      color: var(--color-text-tertiary);
-      grid-column: 1 / -1;
+    .tags { display: flex; gap: 4px; flex-wrap: wrap; margin-top: var(--spacing-xs); }
+    .tag {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 100px;
+      background: var(--color-accent-light);
+      color: var(--color-accent);
+      font-size: var(--font-size-xs);
     }
+
+    .empty { text-align: center; padding: var(--spacing-xl); color: var(--color-text-tertiary); }
   `;
 
-  @property({ type: Array}) entries: KnowledgeEntry[] = [];
-  @property({ type: String }) activeCategory = '全部';
+  @property({ type: Array }) entries: KnowledgeEntry[] = [];
+  @property({ type: String }) search = '';
 
   connectedCallback() {
     super.connectedCallback();
@@ -103,39 +92,48 @@ export class KnowledgeView extends LitElement {
   }
 
   private get filtered(): KnowledgeEntry[] {
-    if (this.activeCategory === '全部') return this.entries;
-    return this.entries.filter(e => e.category === this.activeCategory);
+    if (!this.search) return this.entries;
+    const q = this.search.toLowerCase();
+    return this.entries.filter(e =>
+      e.title.toLowerCase().includes(q) ||
+      e.content.toLowerCase().includes(q) ||
+      e.tags.some(t => t.toLowerCase().includes(q))
+    );
+  }
+
+  private renderMarkdown(text: string) {
+    // Simple wiki-style rendering
+    const html = text
+      .replace(/### (.+)/g, '<h3>$1</h3>')
+      .replace(/## (.+)/g, '<h2>$1</h2>')
+      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+      .replace(/`([^`]+)`/g, '<code>$1</code>')
+      .replace(/```(\w*)\n([\s\S]*?)```/g, '<pre><code>$2</code></pre>')
+      .replace(/^\|(.+)\|$/gm, (match) => {
+        if (match.includes('---')) return '';
+        return match;
+      })
+      .replace(/\n/g, '<br/>');
+    return html;
   }
 
   render() {
-    const categories = ['全部', ...KNOWLEDGE_CATEGORIES];
-
     return html`
       <div>
-        <div class="page-header">
-          <div class="page-title">知识库</div>
-          <button class="btn btn-primary" @click=${() => alert('添加新条目（功能开发中）')}>+ 添加条目</button>
+        <div class="page-title">📚 个人知识库</div>
+        <div class="search-bar">
+          <input type="text" placeholder="搜索知识条目..." .value=${this.search}
+            @input=${(e: InputEvent) => this.search = (e.target as HTMLInputElement).value} />
         </div>
-
-        <div class="category-bar">
-          ${categories.map(c => html`
-            <button class="cat-btn ${this.activeCategory === c ? 'active' : ''}"
-              @click=${() => this.activeCategory = c}>${c}</button>
-          `)}
-        </div>
-
-        <div class="knowledge-grid">
+        <div class="entry-list">
           ${this.filtered.length === 0
-            ? html`<div class="empty">该分类下暂无知识条目</div>`
+            ? html`<div class="empty">暂无匹配条目</div>`
             : this.filtered.map(e => html`
-              <div class="entry-card" @click=${() => selectKnowledge(e.id)}>
-                <div class="entry-category">${e.category}</div>
+              <div class="entry-card">
                 <div class="entry-title">${e.title}</div>
-                <div class="entry-preview">${e.content.slice(0, 150)}...</div>
-                <div class="entry-tags">
-                  ${e.tags.map(t => html`<span class="tag">${t}</span>`)}
-                </div>
-                <div class="entry-date">${e.createdAt}</div>
+                <div class="entry-meta">${e.category} · ${e.updatedAt}</div>
+                <div class="entry-content">${this.renderMarkdown(e.content)}</div>
+                <div class="tags">${e.tags.map(t => html`<span class="tag">${t}</span>`)}</div>
               </div>
             `)}
         </div>
